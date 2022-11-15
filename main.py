@@ -20,5 +20,7 @@ class QuoraProfileScraper(Scraper):
        self.driver.get(self.url); 
        print(self.driver.page_source.encode("utf-8"));
 
-amoghQuoraScraper = QuoraProfileScraper("https://www.quora.com/profile/Amogh-Rijal");
-amoghQuoraScraper.scrape();
+if __name__ == "__main__":
+    amoghQuoraScraper = QuoraProfileScraper("https://www.quora.com/profile/Amogh-Rijal");
+    amoghQuoraScraper.scrape();
+
