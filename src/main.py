@@ -32,6 +32,19 @@ class QuoraProfileScraper(Scraper):
         if answerButton:
             answerButton.click()
 
+        WebDriverWait(self.driver, 120).until(
+            EC.presence_of_element_located(
+                (By.CLASS_NAME, "q-box.qu-pt--medium.qu-borderBottom")
+            )
+        )
+
+        answerDivs = self.driver.find_elements(
+            By.CLASS_NAME, "q-box.qu-pt--medium.qu-borderBottom"
+        )
+
+        for div in answerDivs:
+            print(div.text)
+
     def __get_answer_button(self):
         answer_buttons = self.driver.find_elements(
             By.CLASS_NAME,
