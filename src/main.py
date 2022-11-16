@@ -7,6 +7,12 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.chrome.webdriver import WebDriver
+from enum import Enum
+
+
+class QuoraSelectors(Enum):
+    Answer_Div = "q-box.qu-pt--medium.qu-borderBottom"
+    Possible_Tab_Buttons = "iyYUZT.ClickWrapper___StyledClickWrapperBox-zoqi4f-0.qu-cursor--pointer.qu-tapHighlight--white"
 
 
 class Scraper:
@@ -29,20 +35,11 @@ class QuoraProfileScraper(Scraper):
         WebDriverWait(self.driver, 120).until(
             EC.presence_of_element_located((By.ID, "root"))
         )
-        answerButton = self.__get_answer_button()
-        if answerButton:
-            answerButton.click()
-
+        answerButton = get_answer_button(self.driver).click()
         WebDriverWait(self.driver, 120).until(
-            EC.presence_of_element_located(
-                (By.CLASS_NAME, "q-box.qu-pt--medium.qu-borderBottom")
-            )
+            EC.presence_of_element_located((By.CLASS_NAME, QuoraSelectors.Answer_Div))
         )
-
-        answerDivs = self.driver.find_elements(
-            By.CLASS_NAME, "q-box.qu-pt--medium.qu-borderBottom"
-        )
-
+        answerDivs = self.driver.find_elements(By.CLASS_NAME, QuoraSelectors.Answer_Div)
         for div in answerDivs:
             print(div.text)
 
@@ -50,7 +47,7 @@ class QuoraProfileScraper(Scraper):
 def get_answer_button(driver: WebDriver):
     answer_buttons = driver.find_elements(
         By.CLASS_NAME,
-        "iyYUZT.ClickWrapper___StyledClickWrapperBox-zoqi4f-0.qu-cursor--pointer.qu-tapHighlight--white",
+        QuoraSelectors.Possible_Tab_Buttons,
     )
     for button in answer_buttons:
         if button.text.__contains__("Answers"):
