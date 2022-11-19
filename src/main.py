@@ -30,19 +30,24 @@ class ScrapedAnswer:
         self.answer = answer
         return self
 
-    def create(self) -> dict[str, str]:
+    def create(self) -> typing.Union[dict[str, str], None]:
         if not self.date or not self.question or not self.answer:
             self.logger(self)
-        return {"date": self.date, "question": self.question, "answer": self.answer}
+            return {"date": self.date, "question": self.question, "answer": self.answer}
 
 
 class QuoraSelectors(Enum):
+    # Div that contains each block of question answer
     Answer_Container_Div = "q-box.qu-pt--medium.qu-borderBottom"
+    # Answer tab button in the main profile .. i.e 5 Answers
     Possible_Tab_Buttons = "iyYUZT.ClickWrapper___StyledClickWrapperBox-zoqi4f-0.qu-cursor--pointer.qu-tapHighlight--white"
+    # Div that contains date, profile / info about the answerer (inside Answer_Container_Div)
     Answer_Date_Addr = (
         "q-text.qu-dynamicFontSize--small.qu-color--gray.qu-passColorToLinks"
     )
+    # Div that contains Question only (inside Answer_Container_Div)
     Answer_Question = "q-text.qu-truncateLines--5.puppeteer_test_question_title"
+    # Div that contains Answer only (inside Answer_Container_Div)
     Answer_Answer = "q-box.spacing_log_answer_content.puppeteer_test_answer_content"
 
 
@@ -94,7 +99,8 @@ class QuoraProfileScraper(Scraper):
                 .setQuestion(question.text)
                 .create()
             )
-            self.collector.append(createdData)
+            if createdData:
+                self.collector.append(createdData)
 
 
 def get_answer_button(driver: WebDriver):
