@@ -1,3 +1,4 @@
+import time
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
@@ -8,10 +9,46 @@ from enum import Enum
 import typing
 
 ## @todo ->
-## 1) Add scrolling to get more data
 ## 2) Date parsing
-## 3) Add previous question/answer recognization and stop scraping if data repeats
+## 3) Add previous question/answer recognization and stop scraping if data repeats (from server / db persist)
 ## 4) Server to run at times
+
+
+class DatumType(typing.TypedDict):
+    question: str
+    answer: str
+    date: str
+
+
+class Collector:
+    def __init__(self) -> None:
+        self.data: list[DatumType] = []
+        self.questionToAnswerMap: dict[str, str] = {}
+        self.questionAnswerExists: dict[str, bool] = {}
+
+    def append(self, datum: DatumType):
+        self.data.append(datum)
+        self.questionToAnswerMap[datum["question"]] = datum["answer"]
+        self.questionAnswerExists[self.__createQuestionAnswerKey(datum)] = True
+
+    def get_list(self):
+        return self.data
+
+    def hasDatum(self, datum: DatumType):
+        doesExist = self.questionAnswerExists.get(self.__createQuestionAnswerKey(datum))
+        return bool(doesExist)
+
+    def __createQuestionAnswerKey(self, datum: DatumType):
+        return datum["question"] + "_____" + datum["answer"]
+
+    def __len__(self):
+        return len(self.data)
+
+    def __str__(self):
+        return f"Collection list data: {self.data}"
+
+    def __repr__(self):
+        return self.__str__()
 
 
 class ScrapedAnswer:
@@ -30,9 +67,10 @@ class ScrapedAnswer:
         self.answer = answer
         return self
 
-    def create(self) -> typing.Union[dict[str, str], None]:
+    def create(self) -> typing.Union[DatumType, None]:
         if not self.date or not self.question or not self.answer:
             self.logger(self)
+        else:
             return {"date": self.date, "question": self.question, "answer": self.answer}
 
 
@@ -49,12 +87,14 @@ class QuoraSelectors(Enum):
     Answer_Question = "q-text.qu-truncateLines--5.puppeteer_test_question_title"
     # Div that contains Answer only (inside Answer_Container_Div)
     Answer_Answer = "q-box.spacing_log_answer_content.puppeteer_test_answer_content"
+    # See more button on long answers
+    See_More_Button = "QTextTruncated__StyledReadMoreLink-sc-1pev100-2.bSoNWX"
 
 
 class Scraper:
     def __init__(self):
         chrome_options = Options()
-        chrome_options.add_argument("--headless")
+        # chrome_options.add_argument("--headless")
         chrome_options.add_argument("--disable-extensions")
         chrome_options.add_argument("--disable-gpu")
 
@@ -62,7 +102,7 @@ class Scraper:
 
 
 class QuoraProfileScraper(Scraper):
-    def __init__(self, url: str, collector: list[dict[str, str]]):
+    def __init__(self, url: str, collector: Collector):
         self.url = url
         self.collector = collector
         Scraper.__init__(self)
@@ -76,31 +116,66 @@ class QuoraProfileScraper(Scraper):
         if answer_button:
             answer_button.click()
 
+        next_scroll_pos: int = self.driver.execute_script("return window.pageYOffset")
+        current_scroll_pos: int = -1  # because 0=0 stops loop immediately
+
         WebDriverWait(self.driver, 120).until(
             EC.presence_of_element_located(
                 (By.CLASS_NAME, QuoraSelectors.Answer_Container_Div.value)
             )
         )
-        answerContainerDivs = self.driver.find_elements(
-            By.CLASS_NAME, QuoraSelectors.Answer_Container_Div.value
-        )
-        for div in answerContainerDivs:
-            date_addr = div.find_element(
-                By.CLASS_NAME, QuoraSelectors.Answer_Date_Addr.value
+
+        while current_scroll_pos != next_scroll_pos:
+            answerContainerDivs = self.driver.find_elements(
+                By.CLASS_NAME, QuoraSelectors.Answer_Container_Div.value
             )
-            question = div.find_element(
-                By.CLASS_NAME, QuoraSelectors.Answer_Question.value
+
+            for div in answerContainerDivs:
+                date_addr = div.find_element(
+                    By.CLASS_NAME, QuoraSelectors.Answer_Date_Addr.value
+                )
+                question = div.find_element(
+                    By.CLASS_NAME, QuoraSelectors.Answer_Question.value
+                )
+                answer = div.find_element(
+                    By.CLASS_NAME, QuoraSelectors.Answer_Answer.value
+                )
+                try:
+                    see_more = div.find_element(
+                        By.CLASS_NAME, QuoraSelectors.See_More_Button.value
+                    )
+                    if see_more:
+                        see_more.click()
+                except:
+                    pass
+
+                createdData = (
+                    ScrapedAnswer(logger)
+                    .setDate(date_addr.text)
+                    .setAnswer(answer.text)
+                    .setQuestion(question.text)
+                    .create()
+                )
+                if createdData:
+                    if not self.collector.hasDatum(createdData):
+                        self.collector.append(createdData)
+
+            self.driver.execute_script(
+                "window.scrollTo(0, document.body.scrollHeight);"
             )
-            answer = div.find_element(By.CLASS_NAME, QuoraSelectors.Answer_Answer.value)
-            createdData = (
-                ScrapedAnswer(logger)
-                .setDate(date_addr.text)
-                .setAnswer(answer.text)
-                .setQuestion(question.text)
-                .create()
-            )
-            if createdData:
-                self.collector.append(createdData)
+
+            current_scroll_pos = next_scroll_pos
+            next_scroll_pos = self.driver.execute_script("return window.pageYOffset")
+
+            waitLoopCount = 0
+            while waitLoopCount < 10:
+                waitLoopCount = waitLoopCount + 1
+                time.sleep(3)
+                newAnswerContainerDivs = self.driver.find_elements(
+                    By.CLASS_NAME, QuoraSelectors.Answer_Container_Div.value
+                )
+                if len(newAnswerContainerDivs) > len(answerContainerDivs):
+                    break
 
 
 def get_answer_button(driver: WebDriver):
@@ -121,9 +196,10 @@ def logger(data: ScrapedAnswer):
 
 
 if __name__ == "__main__":
-    answers = []
+    answers = Collector()
     amoghQuoraScraper = QuoraProfileScraper(
         "https://www.quora.com/profile/Amogh-Rijal", answers
     )
     amoghQuoraScraper.scrape()
     print(answers)
+    print(len(answers))
