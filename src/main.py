@@ -13,12 +13,10 @@ import typing
 ## 3) Add previous question/answer recognization and stop scraping if data repeats (from server / db persist)
 ## 4) Server to run at times
 
-
 class DatumType(typing.TypedDict):
     question: str
     answer: str
     date: str
-
 
 class Collector:
     def __init__(self) -> None:

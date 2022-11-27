@@ -1,0 +1,20 @@
+[tool.poetry]
+name = "quora-scraper"
+version = "0.1.0"
+description = "Scrape quora answers from a profile"
+authors = ["Amogh Rijal <xamoghx@gmail.com>"]
+license = "MIT"
+readme = "README.md"
+packages = [{include = "quora_scraper"}]
+
+[tool.poetry.dependencies]
+python = "^3.10"
+selenium = "^4.6.1"
+
+
+[tool.poetry.group.dev.dependencies]
+black = {version = "^22.10.0", allow-prereleases = true}
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
