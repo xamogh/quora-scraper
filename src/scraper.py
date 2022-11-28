@@ -13,10 +13,12 @@ import typing
 ## 3) Add previous question/answer recognization and stop scraping if data repeats (from server / db persist)
 ## 4) Server to run at times
 
+
 class DatumType(typing.TypedDict):
     question: str
     answer: str
     date: str
+
 
 class Collector:
     def __init__(self) -> None:
@@ -33,7 +35,9 @@ class Collector:
         return self.data
 
     def hasDatum(self, datum: DatumType):
-        doesExist = self.questionAnswerExists.get(self.__createQuestionAnswerKey(datum))
+        doesExist = self.questionAnswerExists.get(
+            self.__createQuestionAnswerKey(datum)
+        )
         return bool(doesExist)
 
     def __createQuestionAnswerKey(self, datum: DatumType):
@@ -50,7 +54,9 @@ class Collector:
 
 
 class ScrapedAnswer:
-    def __init__(self, logger: typing.Callable[["ScrapedAnswer"], None]) -> None:
+    def __init__(
+        self, logger: typing.Callable[["ScrapedAnswer"], None]
+    ) -> None:
         self.logger = logger
 
     def setDate(self, date: str) -> "ScrapedAnswer":
@@ -69,7 +75,11 @@ class ScrapedAnswer:
         if not self.date or not self.question or not self.answer:
             self.logger(self)
         else:
-            return {"date": self.date, "question": self.question, "answer": self.answer}
+            return {
+                "date": self.date,
+                "question": self.question,
+                "answer": self.answer,
+            }
 
 
 class QuoraSelectors(Enum):
@@ -82,9 +92,13 @@ class QuoraSelectors(Enum):
         "q-text.qu-dynamicFontSize--small.qu-color--gray.qu-passColorToLinks"
     )
     # Div that contains Question only (inside Answer_Container_Div)
-    Answer_Question = "q-text.qu-truncateLines--5.puppeteer_test_question_title"
+    Answer_Question = (
+        "q-text.qu-truncateLines--5.puppeteer_test_question_title"
+    )
     # Div that contains Answer only (inside Answer_Container_Div)
-    Answer_Answer = "q-box.spacing_log_answer_content.puppeteer_test_answer_content"
+    Answer_Answer = (
+        "q-box.spacing_log_answer_content.puppeteer_test_answer_content"
+    )
     # See more button on long answers
     See_More_Button = "QTextTruncated__StyledReadMoreLink-sc-1pev100-2.bSoNWX"
 
@@ -92,7 +106,7 @@ class QuoraSelectors(Enum):
 class Scraper:
     def __init__(self):
         chrome_options = Options()
-        # chrome_options.add_argument("--headless")
+        chrome_options.add_argument("--headless")
         chrome_options.add_argument("--disable-extensions")
         chrome_options.add_argument("--disable-gpu")
 
@@ -101,6 +115,7 @@ class Scraper:
 
 class QuoraProfileScraper(Scraper):
     def __init__(self, url: str, collector: Collector):
+        print("---started scraping---")
         self.url = url
         self.collector = collector
         Scraper.__init__(self)
@@ -114,7 +129,9 @@ class QuoraProfileScraper(Scraper):
         if answer_button:
             answer_button.click()
 
-        next_scroll_pos: int = self.driver.execute_script("return window.pageYOffset")
+        next_scroll_pos: int = self.driver.execute_script(
+            "return window.pageYOffset"
+        )
         current_scroll_pos: int = -1  # because 0=0 stops loop immediately
 
         WebDriverWait(self.driver, 120).until(
@@ -163,7 +180,9 @@ class QuoraProfileScraper(Scraper):
             )
 
             current_scroll_pos = next_scroll_pos
-            next_scroll_pos = self.driver.execute_script("return window.pageYOffset")
+            next_scroll_pos = self.driver.execute_script(
+                "return window.pageYOffset"
+            )
 
             waitLoopCount = 0
             while waitLoopCount < 10:
@@ -191,13 +210,3 @@ def get_answer_button(driver: WebDriver):
 # extend to more
 def logger(data: ScrapedAnswer):
     print(data)
-
-
-if __name__ == "__main__":
-    answers = Collector()
-    amoghQuoraScraper = QuoraProfileScraper(
-        "https://www.quora.com/profile/Amogh-Rijal", answers
-    )
-    amoghQuoraScraper.scrape()
-    print(answers)
-    print(len(answers))
